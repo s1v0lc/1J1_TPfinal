@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8" />
+        <title>Drift City</title>
+        <style>
+            canvas {
+                border: black 3px solid;
+                margin-left: 33vw;
+                background-image: url("images/fondEcranDeDemarrage.jpg");
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- Créer la balise canvas et modifier ensuite ses dimensions -->
+        <canvas width="600" height="800"></canvas>
+
+        <script>
+            //Récupérer la balise canvas et définir son contexte de dessin en 2d
+            let leCanvas = document.querySelector("canvas");
+            let ctx = leCanvas.getContext("2d");
+
+            //Afficher l'image d'arrière-plan dans le canvas
+
+            //Création de l'objet de la voiture
+            let voiture = {
+                img : new Image(),
+                urlImage : "images/carSprite.png",
+                x : 0,
+                y : 0,
+                largeur : 64, //largeur d'une vignette
+                hauteur : 31, //hauteur d'une vignette
+                nbVignettes : 6,
+                sourceX : 0,
+                sourceY : 0,
+                indexVignette : 0,
+                vitesseX : 5,
+                vitesseY : 3
+            }
+            //Chargement de l'images
+            voiture.img.src = voiture.urlImage;
+
+            //Placement de la voiture au bas et au centre
+            voiture.x = leCanvas.width / 2 - voiture.largeur / 2;
+            voiture.y = leCanvas.width - voiture.hauteur;
+
+            //Création de l'objet des touches
+            let toucheWASD = {
+                w : false,
+                a : false,
+                s : false,
+                d : false
+            }
+
+            //Cadre des règles
+            let cadre = {
+                img : new Image(),
+                urlImage : "images/cadreRegles.png",
+            }
+
+            //chargement de l'image
+            cadre.img.src = cadre.urlImage;
+
+            //Autres variables
+            let debutJeu = true;
+            let finJeu = false;
+            let deplacementVoiture = false;
+            let affichageRegles = true;
+
+
+            //Gestionnaire d'événement sur le document pour détecter si des touches de clavier sont appuyées ou relâchées
+            document.addEventListener("keydown", presserTouche);
+            document.addEventListener("keyup", relacherTouche);
+            
+            //Ajout d'un écouteur pour afficher les règles lors d'un clic
+            leCanvas.addEventListener("click", afficherRegles);
+            
+            //Ajout d'un écouteur pour charger l'image du cadre des règles
+            cadre.img.addEventListener("load", afficherRegles);
+            
+            //Interval pour le déplacement de la voiture à 60 FPS
+            let intervalID;
+            
+            //*********Les Fonctions ***********************************************//
+            
+            //Au démarrage
+            afficherConsigne();
+            
+            //Fonction pour déplacer et dessiner la voiture
+            function actualiserJeu() {
+                //Effacer le contenu actuel du contexte de rendu du canvas
+                ctx.clearRect(0, 0, leCanvas.width, leCanvas.height);
+                
+                //Fonction pour afficher les Règles du jeu lors d'un clic si le jeu n'a pas commencé
+                if (debutJeu) {
+
+                }
+                    //Fonctions qui seront appelées 60 fois par seconde dèe que la touche E est enfoncée
+                    if (!debutJeu) {
+                        //Changement de l'arrière-plan
+                        leCanvas.style.backgroundImage = "url(images/fondEcranJeu.jpg)";
+
+                        //Appel de la fonction pour déplacer la voiture
+                        deplacerVoiture();
+
+                        // -- À Compléter -- Appel de la fonction pour animer la voiture à 6 FPS
+                        // let intervalSpriteID = setInterval(gererAnimationFeuilleDeSprite, 1000 / 6);
+                       }
+
+                
+            }
+
+            //Fonction pour déplacer la voiture
+            function deplacerVoiture() {
+                //Calculer les positions de la voiture
+                if (toucheWASD.d) {
+                    voiture.x += voiture.vitesseX;
+                }
+                
+                if (toucheWASD.a) {
+                    voiture.x -= voiture.vitesseX;
+                }
+                
+                 if (toucheWASD.w) {
+                    voiture.y -= voiture.vitesseY;
+                }
+                
+                if (toucheWASD.s) {
+                    voiture.y += voiture.vitesseY;
+                }
+
+                //Limites horizontales
+                //côté gauche
+                if (voiture.x < 160) {
+                    voiture.x = 160;
+                }
+
+                //côté droit
+                if (voiture.x > leCanvas.width - 210) {
+                    voiture.x = leCanvas.width - 210;
+                }
+
+                //Limites Verticales
+                //bas
+                if (voiture.y > leCanvas.height - voiture.hauteur - 10) {
+                    voiture.y = leCanvas.height - voiture.hauteur - 10;
+                }
+
+                //haut
+                if (voiture.y < 360){
+                    voiture.y = 360;
+                }
+
+                
+                //Dessiner la voiture
+                ctx.drawImage(
+                    voiture.img,
+                    voiture.sourceX, 
+                    voiture.sourceY,
+                    voiture.largeur,
+                    voiture.hauteur,
+                    voiture.x,
+                    voiture.y,
+                    voiture.largeur,
+                    voiture.hauteur)
+            }    
+            // Détecte quelles touches sont appuyées
+            function presserTouche(event) {
+                
+                //console.log("presserTouche", event.keyCode);
+
+                //Enregistrer si la touche de démarrage est pressée
+                if(event.keyCode == 69) { 
+                    //E
+                    if (debutJeu) {
+                    //Désactivation de l'écouteur pour afficher les règles
+                    leCanvas.removeEventListener("click", afficherRegles);
+                    
+                    //Départ de l'interval pour actualiser le jeu
+                    intervalID = setInterval(actualiserJeu, 1000 / 60);
+                    
+                    //Changement de la variable de contrôle
+                    debutJeu = false;
+                    }
+                }
+
+                //Enregistrer si une touche W/A/S/D est pressée
+                
+                if (event.keyCode == 87) {
+                    //W
+                    toucheWASD.w = true;
+                }
+                
+                if (event.keyCode == 65) {
+                    //A
+                    toucheWASD.a = true;
+                }
+                
+                if (event.keyCode == 83 ) {
+                    //S
+                    toucheWASD.s = true;
+                }
+                
+                if (event.keyCode == 68 ) {
+                    //D
+                    toucheWASD.d = true;
+                }
+            }
+            // Détecte quelles touches sont relâchées
+            function relacherTouche(event) {
+                //console.log("relacherTouche", event.keyCode);
+                //Enregistrer si une touche W/A/S/D est relâchée
+                
+                if (event.keyCode == 87) {
+                    //W
+                    toucheWASD.w = false;
+                }
+                
+                if (event.keyCode == 65) {
+                    //A
+                    toucheWASD.a = false;
+                }
+
+                if (event.keyCode == 83) {
+                    //S
+                    toucheWASD.s = false;
+                }
+
+                if (event.keyCode == 68) {
+                    //D
+                    toucheWASD.d = false;
+                }
+            
+            }
+            // --À Compléter-- Fonction pour gérer l'animation du mouvement de la voiture
+            function gererAnimationFeuilleDeSprite(){
+
+                //incrémentation de l'indexVignette
+                voiture.sourceX = voiture.indexVignette * voiture.largeur;
+                voiture.indexVignette++;
+                //console.log(voiture.indexVignette);
+
+                if (voiture.indexVignette == voiture.nbVignettes) {
+                    voiture.indexVignette = 1;
+                }
+            }
+                    
+            //Fonction pour dessiner le texte de la consigne
+            function afficherConsigne() {
+                //Styles du texte
+                ctx.font = "italic 18px Arial";
+                ctx.textBaseline = "bottom";
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "center";
+                let x = leCanvas.width / 2;
+                let y = leCanvas.height;
+                let leTexte =
+                "Cliquer pour afficher/cacher les règles ou appuyer sur E pour démarrer";
+                
+                //Dessin du texte
+                ctx.fillText(leTexte, x, y);
+            }
+
+            //Foncion pour afficher les règles
+            function afficherRegles() {
+                if (affichageRegles) {
+                    //changement de la variable de contrôle
+                    affichageRegles = false
+
+                    //effacement des règles
+                    ctx.clearRect(0, 0, leCanvas.width, leCanvas.height * 3/4);
+
+                } else {
+
+                    //changement de la variable de contrôle
+                    affichageRegles = true;
+
+                    //arrière plan du texte
+                    let abcisse = leCanvas.width/2 - cadre.img.width/2;
+                    let ordonnee = leCanvas.height/2 - cadre.img.height/2;
+
+                    //Dessiner le cadre
+                    ctx.drawImage(cadre.img, abcisse, ordonnee);
+
+                    /*Styles du texte
+                    ctx.font = "30px Arial";
+                    ctx.textBaseline = "bottom";
+                    ctx.fillStyle = "#ffffff";
+                    ctx.textAlign = "center";
+                    let x = leCanvas.width/2;
+                    let y = leCanvas.height/2;
+                    let leTexte = 
+                    "Bienvenue à Drift City !"
+                    
+                    //Dessiner le texte
+                    ctx.fillText(leTexte, x, y);*/
+                }
+            }
+        
+        </script>
+    </body>
+    </html>
