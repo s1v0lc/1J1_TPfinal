@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8" />
+        <title>Drift City</title>
+        <style>
+            /*Importation de la police Orbitron*/
+            @font-face {
+                font-family: "Orbitron";
+                src: url(polices/Orbitron-VariableFont_wght.ttf);
+            }
+            
+            /*Bordure du canevas*/
+            canvas {
+                border: black 3px solid;
+                margin-left: 33vw;
+                
+            }
+        </style>
+    </head>
+
+    <body>
+        <!-- Création de la balise Canvas et de ses dimensions -->
+        <canvas width="600" height="800"></canvas>
+
+        <script>
+
+            /***************** Informations***************
+            
+            Auteur: Clovis Gauthier
+            Date : 20 Décembre 2022
+            But du jeu:
+                Terminer la partie avec le plus haut score possible.
+                Pour y arriver, il faut éviter les cones et ramasser les boosts.
+                Après 3 collisions avec des cônes, c'est la fin du jeu.
+            1J1 Animation et Interactivité en Jeu
+            Collège de Maisonneuve | TIM Automne 2022
+
+            *********************************************/
+
+            //////////////////////////// Variables & Objets ///////////////////////////////////
+
+            //Récupérer la balise canvas et définir son contexte de dessin en 2d
+            let leCanvas = document.querySelector("canvas");
+            let ctx = leCanvas.getContext("2d");
+
+            //Afficher l'image d'arrière-plan dans le canvas
+            leCanvas.style.backgroundImage = "url(images/fondEcranDeDemarrage.jpg)";
+
+            //OBJETS
+            //Création de l'objet de la voiture
+            let voiture = {
+                img : new Image(),
+                urlImage : "images/carSprite.png",
+                x : 0,
+                y : 0,
+                largeur : 64, //largeur d'une vignette
+                hauteur : 31, //hauteur d'une vignette
+                nbVignettes : 6,
+                sourceX : 0,
+                sourceY : 0,
+                indexVignette : 0,
+                vitesseX : 5,
+                vitesseY : 3
+            }
+            //Chargement de l'image
+            voiture.img.src = voiture.urlImage;
+
+            //Positionnement de la voiture au bas et au centre du canevas
+            voiture.x = leCanvas.width / 2 - voiture.largeur / 2;
+            voiture.y = leCanvas.width - voiture.hauteur;
+
+            //Création de l'objet des touches
+            let toucheWASD = {
+                w : false,
+                a : false,
+                s : false,
+                d : false
+            }
+
+            //Création de l'objet du Cadre pour les règles
+            let cadre = {
+                img : new Image(),
+                urlImage : "images/cadreRegles.png",
+            }
+            //chargement de l'image
+            cadre.img.src = cadre.urlImage;
+
+            //Création de l'objet pour l'animation du fond
+            let animationDuFond = {
+                img: new Image,
+                urlImage: "images/fondSprite.png",
+                x: 4,
+                y: -2,
+                largeur: 600,
+                hauteur: 800,
+                nbVignettes: 6,
+                indexVignette: 0,
+                sourceX: 0
+            }
+            //Chargement de l'image
+            animationDuFond.img.src = animationDuFond.urlImage;
+
+            //Création de l'objet pour les vies
+            let vie = {
+            img: new Image(),
+            urlImage: "images/vies.png",
+            x: 0,
+            y: 20,
+            largeur: 70,
+            hauteur: 35,
+            }
+            //Chargement de l'image
+            vie.img.src = vie.urlImage;
+            
+            //TABLEAU
+            //Création du tableau pour les cônes
+            let LesCones = [];
+
+            //Création du tableau pour les boosts
+            let LesBoosts = [];
+
+            //Création de la variable pour les points
+            let score = 0;
+
+            //Création de la variable pour le nombre de vies
+            let nombreDeVie = 3;
+            
+            //AUDIO
+            let sonCollision = new Audio("sons/bonk.mp3");
+            let sonFond = new Audio("sons/Vhs_Dreams_HIghway_Lovers.mp3");
+            let sonBoost = new Audio("sons/boost.mp3");
+            let sonFin = new Audio("sons/gameOver.wav");
+
+            //Variables de Contrôle (lightSwitch)
+            let phasePreJeu = true;
+            let phasePostJeu = false;
+            let deplacementVoiture = false;
+            let affichageRegles = true;
+            
+            //////////////////////////// Démarrage & Événements ////////////////////////////////////
+
+            //Ajout d'un écouteur sur le document pour détecter si des touches de clavier sont appuyées ou relâchées
+            document.addEventListener("keydown", presserTouche);
+            document.addEventListener("keyup", relacherTouche);
+            
+            //Ajout d'un écouteur sur le canevas pour afficher les règles lors d'un clic
+            leCanvas.addEventListener("click", afficherRegles);
+            
+            //Ajout d'un écouteur sur le cadre des règles pour en charger l'image
+            cadre.img.addEventListener("load", afficherRegles);
+            
+            //Interval pour actualiser le jeu initialisé par la touche E
+            let intervalJeuID;
+
+            //Création de l'interval pour animer le fond à 6 FPS
+            let intervalFondID;
+            
+            //Création de l'interval pour générer les cônes
+            let intervalConeID;
+
+            //Création de l'interval pour générer les boost
+            let intervalBoostID;
+
+            //Création de l'interval pour afficher le score
+            let intervalSCoreID;
+
+            //Affichage des consignes au bas de l'écran
+            afficherConsigne();
+            
+            //////////////////////// Les Fonctions ////////////////////////////////////////////////
+            
+            //Fonction pour déplacer et dessiner la voiture
+            function actualiserJeu() {
+                //Effacer le contenu actuel du contexte de rendu du canvas
+                ctx.clearRect(0, 0, leCanvas.width, 350);
+                ctx.clearRect(163, 350, 281, leCanvas.height)
+                
+                //Appel de la fonction pour déplacer la voiture
+                deplacerVoiture();
+
+                //Appel de la fonction pour déplacer les cônes
+                deplacerLesCones();
+
+                //Appel de la fonction pour déplacer les boost
+                deplacerLesBoosts();
+
+                //Appel de la fonction pour augmenter le score
+                augmenterScore();
+
+                //Appel de la fonction pour afficher les vies
+                afficherVies();
+
+                //Détection Collisions Cônes
+                for (let unCone of LesCones) {
+                    //Si le cône n'est pas déjà accidenté
+                    if (!unCone.accident) {
+                        //Vérifier si une collision est détectée
+                        if (detecterCollision(unCone, voiture)) {
+                        
+                        //Lecture du son du cône accidenté
+                        sonCollision.currentTime = 1.1;
+                        sonCollision.volume = 0.4;
+                        sonCollision.play();
+
+                        //Enregistrement que le cône est accidenté
+                        unCone.accident = true;
+                        
+                        //Ralentissement du cône
+                        unCone.vitesseY = 2;
+                        
+                        //On enlève une vie
+                        nombreDeVie --;
+                        }
+                    }   
+                } 
+
+                //Détection Collisions Boosts
+                for (let unBoost of LesBoosts) {
+                    //Si le boost n'est pas déjà récupéré
+                    if (!unBoost.recupere) {
+                        //Vérifier si une collision est détectée
+                        if (detecterCollision(unBoost, voiture)) {
+                        
+                        //Lecture du son du boost
+                        sonBoost.volume = 0.5
+                        sonBoost.play();
+
+                        //Enregistrement que le boost est récupéré
+                        unBoost.recupere = true;
+                        
+                        //Changement de l'image du boost lorsqu'il est récupéré
+                        unBoost.img.src = "images/boostRecupere.png";
+
+                        //Incrémentation du score
+                        score += 500;
+                        
+                        }
+                    }   
+                } 
+                
+                //Détection Fin du jeu
+                if(nombreDeVie == 0) {
+                    //Changement de la variable de controle
+                    phasePostJeu = true;
+                    //Appel de la fonction pour gerer la fin du jeu
+                    gererFinDuJeu();
+                }
+            }
+                
+            //Fonction pour déplacer la voiture
+            function deplacerVoiture() {
+                //Calculer les positions de la voiture
+                if (toucheWASD.d) {
+                    voiture.x += voiture.vitesseX;
+                }
+                
+                if (toucheWASD.a) {
+                    voiture.x -= voiture.vitesseX;
+                }
+                
+                 if (toucheWASD.w) {
+                    voiture.y -= voiture.vitesseY;
+                }
+                
+                if (toucheWASD.s) {
+                    voiture.y += voiture.vitesseY;
+                }
+
+                //Limites horizontales
+                //côté gauche
+                if (voiture.x < 165) {
+                    voiture.x = 165;
+                }
+
+                //côté droit
+                if (voiture.x > leCanvas.width - 223) {
+                    voiture.x = leCanvas.width - 223;
+                }
+
+                //Limites Verticales
+                //bas
+                if (voiture.y > leCanvas.height - voiture.hauteur - 10) {
+                    voiture.y = leCanvas.height - voiture.hauteur - 10;
+                }
+
+                //haut
+                if (voiture.y < 360){
+                    voiture.y = 360;
+                }
+  
+                //Dessiner la voiture
+                ctx.drawImage(
+                    voiture.img,
+                    voiture.sourceX, 
+                    voiture.sourceY,
+                    voiture.largeur,
+                    voiture.hauteur,
+                    voiture.x,
+                    voiture.y,
+                    voiture.largeur,
+                    voiture.hauteur);
+            }    
+
+            // Détecte quelles touches sont appuyées et les instructions leur étant associées
+            function presserTouche(event) {
+                //Enregistrer si la touche de démarrage E est pressée
+                if(event.keyCode == 69) { 
+                    //E
+                    if (phasePreJeu) {
+                    //Changement de la variable de contrôle
+                    phasePreJeu = false;
+
+                    //Effacement du canevas (Pour retirer les bouts restant de la consigne initiale)
+                    ctx.clearRect(0, 0, leCanvas.width, leCanvas.height);
+
+                    //Désactivation de l'écouteur pour afficher les règles
+                    leCanvas.removeEventListener("click", afficherRegles);
+
+                    //Changement de l'arrière-plan
+                    leCanvas.style.backgroundImage = "url(images/fondEcranJeu.jpg)";
+
+                    //Départ de l'interval pour animer le fond
+                    intervalFondID = setInterval(animerFondEcran, 1000 / 6);
+                    
+                    //Départ de l'interval pour actualiser le jeu
+                    intervalJeuID = setInterval(actualiserJeu, 1000 / 60);
+
+                    //Départ de l'interval pour générer les cônes à tout les 700ms
+                    intervalConeID = setInterval(ajouterUnCone, 700);
+
+                    //Départ de l'interval pour générer les boost à tout les 5sec
+                    intervalBoostID = setInterval(ajouterUnBoost, 5000);
+
+                    //Lecture en bloucle de la musique de fond
+                    sonFond.play();
+                    sonFond.currentTime = 16.5;
+                    sonFond.volume = 0.05;
+                    sonFond.loop = true
+                    }
+                }
+
+                //Enregistre si la touche de redémarrage R est pressée
+                if (event.keyCode == 82 && phasePostJeu) {
+                    //Réinitialisation la page
+                    document.location.reload();
+                }
+
+                //Enregistrer si une touche W/A/S/D est pressée 
+                if (event.keyCode == 87) {
+                    //W
+                    toucheWASD.w = true;
+                }
+                
+                if (event.keyCode == 65) {
+                    //A
+                    toucheWASD.a = true;
+
+                    //Pour éviter les conflits de sourceX
+                    toucheWASD.d = false
+
+                    //Changement de la sourceX
+                    voiture.sourceX = 320;
+                }
+                
+                if (event.keyCode == 83 ) {
+                    //S
+                    toucheWASD.s = true;
+                }
+                
+                if (event.keyCode == 68 ) {
+                    //D
+                    toucheWASD.d = true;
+
+                    //Pour éviter les conflits de sourceX
+                    toucheWASD.a = false
+
+                    //Changement de la soucreX
+                    voiture.sourceX = 128;
+                }
+            }
+
+            //Fonction pour animer le fond
+            function animerFondEcran() {
+                //Effacement du fond
+                ctx.clearRect(0, 350, 160, leCanvas.height);
+                ctx.clearRect(457, 350, 160, leCanvas.height);
+                
+                //Dessin de la vignette actuelle
+                ctx.drawImage(
+                    animationDuFond.img,
+                    animationDuFond.sourceX,
+                    0,
+                    animationDuFond.largeur,
+                    animationDuFond.hauteur,
+                    animationDuFond.x,
+                    animationDuFond.y,
+                    animationDuFond.largeur,
+                    animationDuFond.hauteur);
+            
+            //Incrémentation de l'index
+            animationDuFond.indexVignette ++;
+
+            //Gestion de la prochaine vignette
+            animationDuFond.sourceX = animationDuFond.indexVignette * animationDuFond.largeur;
+
+            //Boucle de l'animation du fond
+            if (animationDuFond.indexVignette == animationDuFond.nbVignettes -1) {
+                animationDuFond.indexVignette = 0;
+            }
+        }
+
+            //Détecte quelles touches sont relâchées
+            function relacherTouche(event) {
+                //Enregistrer si une touche W/A/S/D est relâchée
+                
+                if (event.keyCode == 87) {
+                    //W
+                    toucheWASD.w = false;
+                }
+                
+                if (event.keyCode == 65) {
+                    //A
+                    toucheWASD.a = false;
+
+                    //Changement de la sourceX
+                    voiture.sourceX = 0;
+                }
+
+                if (event.keyCode == 83) {
+                    //S
+                    toucheWASD.s = false;
+                }
+
+                if (event.keyCode == 68) {
+                    //D
+                    toucheWASD.d = false;
+
+                    //Changement de la sourceX
+                    voiture.sourceX = 0;
+                }
+            
+            }
+            
+            //Fonction pour générer un cône
+            function ajouterUnCone() {
+                //Création de l'objet pour les cônes
+                let cone = {
+                    img: new Image(),
+                    urlImage: "images/cones.png",
+                    x: VoieAuHasard(),
+                    y:  800 - 473,
+                    largeur: 36,
+                    hauteur: 24,
+                    vitesseY: 4,
+                    accident: false
+                }
+                //Charger l'image du cône
+                cone.img.src = cone.urlImage;
+
+                //Ajouter le cone au tableau
+                LesCones.push(cone);
+            }
+
+            //Fonction pour Déplacer et dessiner les cônes
+            function deplacerLesCones() {
+                //Les cône apparaissent sur la ligne d'horizon puis descendent ver le bas
+                for (let unCone of LesCones) {
+                    //Incrémenter sa position en Y
+                    unCone.y += unCone.vitesseY;
+
+                    //Dessiner le cône
+                    ctx.drawImage(unCone.img, unCone.x, unCone.y, unCone.largeur, unCone.hauteur);
+
+                    //Si le cône sort de l'écran on le supprime du tableau
+                    if (unCone.y > leCanvas.height) {
+                        //On identifie son index
+                        let index = LesCones.indexOf(unCone);
+                        //On l'enlève
+                        LesCones.splice(index, 1);
+                    }
+                }
+            }
+          
+            //Fonction pour générer un boost
+            function ajouterUnBoost() {
+                //Création de l'objet pour les boosts
+                let boost = {
+                    img: new Image(),
+                    urlImage: "images/boost.png",
+                    x: VoieAuHasard(),
+                    y:  800 - 473,
+                    largeur: 27,
+                    hauteur: 40,
+                    vitesseY: 2,
+                    recupere: false
+                }
+                //Charger l'image du boost
+                boost.img.src = boost.urlImage;
+
+                //Ajouter le boost au tableau
+                LesBoosts.push(boost);
+            }
+
+            //Fonction pour Déplacer et dessiner les boosts
+            function deplacerLesBoosts() {
+                //Les boost apparaissent sur la ligne d'horizon puis descendent ver le bas
+                for (let unBoost of LesBoosts) {
+                    //Incrémenter sa position en Y
+                    unBoost.y += unBoost.vitesseY;
+
+                    //Dessiner le boost
+                    ctx.drawImage(unBoost.img, unBoost.x, unBoost.y, unBoost.largeur, unBoost.hauteur);
+
+                    //Si le boost sort de l'écran on le supprime du tableau
+                    if (unBoost.y > leCanvas.height) {
+                        //On identifie son index
+                        let index = LesBoosts.indexOf(unBoost);
+                        //On l'enlève
+                        LesBoosts.splice(index, 1);
+                    }
+                }
+            }
+
+            //Fonction pour afficher les vies restantes du joueur
+            function afficherVies() {
+                //Boucle for 
+                for (let index = 0; index < nombreDeVie; index++) {
+                    //Placement des vies avec un léger décalage
+                    vie.x = index * (vie.largeur + 12) + 5;
+
+                    //On dessine les vies
+                    ctx.drawImage(vie.img, vie.x, vie.y);
+                }
+            }
+
+            //Fonction pour générer un entier au hasard entre 1, 2 ou 3
+            //Qui sert à positioner les boost et les cônes
+            function VoieAuHasard() {
+                //Nombre au hasard
+                let nombre = Math.ceil(Math.random()*3);
+
+                //Déclaration de la variable locale
+                let position;
+
+                //Selon la voie choisie au hasard on modifie la position en X
+                if (nombre == 1) { // Voie de gauche
+                    position = 190;
+                } else if (nombre == 2) { //voie du centre
+                    position = 290;
+                } else { // voie de droite
+                    position = 390;
+                }
+
+                return position
+            }
+
+            //Fonction pour dessiner le texte de la consigne
+            function afficherConsigne() {
+                //Styles du texte
+                ctx.font = "italic 18px Arial";
+                ctx.textBaseline = "bottom";
+                ctx.fillStyle = "#ffffff";
+                ctx.textAlign = "center";
+                //Parametres
+                let x = leCanvas.width / 2;
+                let y = leCanvas.height;
+                let leTexte;
+                //Le texte change selon la phase en cours
+                if (phasePreJeu) { //Si le jeu n'a pas commencé
+                    leTexte = "Cliquer pour afficher/cacher les règles ou appuyer sur E pour démarrer";
+                } else { //Si le jeu est terminé
+                    leTexte = "Appuyer sur la touche R pour redémarrer";
+                }
+                
+                //Dessin du texte
+                ctx.fillText(leTexte, x, y);
+            }
+
+            //Foncion pour afficher les règles
+            function afficherRegles() {
+                //Effacement ou Affichage des règles dépendament de si elles sont déja affichées ou non
+                if (affichageRegles) {
+                    //Changement de la variable de contrôle
+                    affichageRegles = false
+
+                    //Effacement des règles
+                    ctx.clearRect(0, 0, leCanvas.width, leCanvas.height * 3/4);
+
+                } else {
+                    //Changement de la variable de contrôle
+                    affichageRegles = true;
+
+                    //coordonnées du cadre
+                    let abcisse = leCanvas.width/2 - cadre.img.width/2;
+                    let ordonnee = leCanvas.height/2 - cadre.img.height/2;
+
+                    //Dessiner le cadre
+                    ctx.drawImage(cadre.img, abcisse, ordonnee);
+                }
+            }
+
+            //Fonction pour augmenter et afficher le score
+            function augmenterScore() {
+                //Incrémentation du compteur
+                score ++;
+
+                //Styles de texte 
+                ctx.fillStyle = "white";
+                ctx.font = " bold 70px orbitron"
+
+                //Affichage du pointage
+                x = 380;
+                y = 120;
+                ctx.fillText(score, x, y)
+
+            }
+
+            //Fonction qui détecte les collisions entre deux objets rectangulaires
+            function detecterCollision(rectangle1, rectangle2) {
+                if (
+                rectangle1.x < rectangle2.x + rectangle2.largeur &&
+                rectangle1.x + rectangle1.largeur > rectangle2.x &&
+                rectangle1.y < rectangle2.y + rectangle2.hauteur &&
+                rectangle1.y + rectangle1.hauteur > rectangle2.y
+                ) {
+                return true;
+                } else {
+                return false;
+                }
+        }
+
+            //Fonction pour gérer la fin du jeu
+            function gererFinDuJeu() {
+                //Effacement du canvas
+                ctx.clearRect(0, 0, leCanvas.width, leCanvas.height);
+
+                //Arrêt des interval
+                clearInterval(intervalJeuID);
+                clearInterval(intervalBoostID);
+                clearInterval(intervalConeID);
+                clearInterval(intervalSCoreID);
+                clearInterval(intervalFondID);
+
+                //Changement de l'arrière-plan
+                leCanvas.style.backgroundImage = "url(images/fondEcranFinJeu.jpg)";
+
+                //Affichage du score final
+                //Parametres
+                let texte = "Vous avez obtenu " + score + " points !";
+                let abcisse = 300;
+                let ordonnee = 600;
+                let largeur = 520;
+                //Dessin
+                ctx.fillText(texte, abcisse, ordonnee, largeur);
+
+                //Affichage de la consigne pour rejouer
+                afficherConsigne();
+
+                //Audio
+                //Arrêt de la musique
+                sonFond.pause();
+
+                //Lecture du son de fin
+                sonFin.currentTime = 0.8;
+                sonFin.play();
+            }
+        </script>
+    </body>
+    </html>
